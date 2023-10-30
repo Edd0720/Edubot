@@ -7,46 +7,62 @@ $update = json_decode($input, TRUE);
 
 $chatId = $update['message']['chat']['id'];
 $message = $update['message']['text'];
-
-$clima=0;
-
-switch($message) {
-    case '/start':
-        $response = 'Me has iniciado';
+$words = explode(' ', $message);
+if(count($words) == 1){
+    $word1 = $words[0];
+    if($word1 == 'help'){
+        $help = [
+            'clima'=> [
+                'ciudad'=> ['temperatura', 'sensacion', 'humedad'],
+            ],
+        ];
+        
+        $response = Help($help);
         sendMessage($chatId, $response);
-        break;
-    case '/info':
-        $response = 'Hola! Soy @trecno_bot';
+    }else{
+        $response = 'Comando no reconocido';
         sendMessage($chatId, $response);
-        break;
-    case 'Edu':
-        $response ="Hola Edu, bienvenido, te quiero mucho";
-        sendMessage($chatId,$response);
-        break;
-    case 'clima':
-        $_SESSION['clima'] = 1;
-        $response = "Escribe un lugar del que quieras conocer el clima $clima";
-        sendMessage($chatId, $response);;
-        break;
-    default:    
-        if ($clima == 1) {
-            $cityMessage = waitForUserMessage();
-            $city = $cityMessage['text'];
-            $response = "La temperatura de $city es " . obtenerClima($city);
-            sendMessage($chatId, $response);
-        } else{
-            $response= "No te he entendido $clima";
-            sendMessage($chatId,$response);
+    }
+    
+}else if(count($words) == 2){
+    $word1 = $words[0];
+    $word2 = $words[1];
+    if($word1 == 'clima' || $word1 == 'Clima'){
+        $clima = obtenerClima($word2);
+        foreach ($clima as $item) {
+            $res .= $item . PHP_EOL;
         }
-        break;
-
-}
-
-
-
-function sendMessage($chatId, $response) {
-    $url = $GLOBALS['website'].'/sendMessage?chat_id='.$chatId.'&parse_mode=HTML&text='.urlencode($response);
-    file_get_contents($url);
+        $response = 'Tiempo en '. $word2 . PHP_EOL . $res;
+        sendMessage($chatId, $response);
+    }else{
+        $response = 'Comando no reconocido';
+        sendMessage($chatId, $response);
+    }
+}else if((count($words) == 3)){
+    $word1 = $words[0];
+    $word2 = $words[1];
+    $word3 = $words[2];
+    if($word1 == 'clima' || $word1 == 'Clima'){
+        if($word3 == 'temperatura' || $word3 == 'Temperatura'){
+            $clima = obtenerClima($word2);
+            $res = $clima[0];
+            $response = 'Tiempo en '. $word2 . PHP_EOL . $res;
+            sendMessage($chatId, $response);
+        }else if($word3 == 'sensacion' || $word3 == 'Sensacion'){
+            $clima = obtenerClima($word2);
+            $res = $clima[1];
+            $response = 'Tiempo en '. $word2 . PHP_EOL . $res;
+            sendMessage($chatId, $response);
+        }else if($word3 == 'humedad' || $word3 == 'Humedad'){
+            $clima = obtenerClima($word2);
+            $res = $clima[2];
+            $response = 'Tiempo en '. $word2 . PHP_EOL . $res;
+            sendMessage($chatId, $response);
+        }            
+    }else{
+        $response = 'Comando no reconocido';
+        sendMessage($chatId, $response);
+    }
 }
 
 function  obtenerClima($city){
@@ -60,42 +76,37 @@ function  obtenerClima($city){
     $result=json_decode($result,true);
     if($result['cod']==200){
         $temp= $result['main']['temp'] - 271.15. " C°";
-        return $temp;
+        $temp = 'Temperatura: ' . $temp;
+        $feels= $result['main']['feels_like'] - 271.15. " C°";
+        $feels = 'Sensacion termica: ' . $feels;
+        $humidity= $result['main']['humidity'];
+        $humidity = 'Humedad: ' . $humidity;
+        return [$temp, $feels, $humidity];
+
     } else {
-        $msg=$result['message'];
-        return $msg;
-    }
-}
-
-function Clima(){
-    if ($clima == 1){
-        $clima = 0;
-        return $clima;
-    } else {
-        $clima = 1;
-        return $clima;
+        $msg=$result['No existe esa ciudad'];
+        return [$msg];
     }
 
 }
 
-function desactivarClima(){
-    $clima=FALSE;
-    return $clima;
-}
+function Help(array $help, string $sep = ',', $prefix = '') {
+    $res = "";
 
-function waitForUserMessage() {
-    $update = getTelegramUpdate();
-    while (!isset($update['message']['text'])) {
-        // No hay mensaje de texto, esperar y volver a intentar
-        sleep(1);
-        $update = getTelegramUpdate();
+    foreach ($help as $key => $value) {
+        if (is_array($value)) {
+            $res .= Help($value, $sep, "$prefix$key ");
+        } else {
+            $res .= "$prefix $value" . PHP_EOL;
+        }
     }
-    return $update['message'];
+
+    return $res;
 }
 
-function getTelegramUpdate() {
-    $input = file_get_contents('php://input');
-    return json_decode($input, true);
+function sendMessage($chatId, $response) {
+    $url = $GLOBALS['website'].'/sendMessage?chat_id='.$chatId.'&parse_mode=HTML&text='.urlencode($response);
+    file_get_contents($url);
 }
     
 ?>
